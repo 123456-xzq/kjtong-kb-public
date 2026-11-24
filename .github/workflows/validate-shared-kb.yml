@@ -1,0 +1,33 @@
+# .github/workflows/validate-shared-kb.yml
+name: validate-shared-kb
+on:
+  push:
+    paths: ['AGENTS.md', 'CLAUDE.md', '**/AGENTS.md', '**/SKILL.md', 'docs/**', '.github/**']
+  pull_request:
+    paths: ['AGENTS.md', 'CLAUDE.md', '**/AGENTS.md', '**/SKILL.md', 'docs/**', '.github/**']
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 1. 必备规则文件存在且非空
+        run: |
+          for f in AGENTS.md docs/KNOWLEDGE_CONVENTIONS.md docs/data-classification.md; do
+            test -s "$f" || { echo "缺失或空文件: $f"; exit 1; }
+          done
+
+      - name: 2. AGENTS.md 行数上限（≤40）
+        run: |
+          lines=$(wc -l < AGENTS.md)
+          [ "$lines" -le 40 ] || { echo "AGENTS.md 超过 40 行: $lines"; exit 1; }
+
+      - name: 3. SKILL.md frontmatter 校验
+        run: bash scripts/check-skills.sh
+
+      - name: 4. Markdown 相对链接有效性
+        run: bash scripts/check-links.sh
+
+      - name: 5. 敏感信息粗筛（拦截客户原文/个人信息/凭据）
+        run: bash scripts/check-sensitive.sh
